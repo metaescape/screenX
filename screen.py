@@ -9,8 +9,7 @@ from time import time, sleep
 import threading
 
 
-def recording(stop_event):
-    bbox = {"top": 220, "left": 640, "width": 640, "height": 640}
+def record_screen(bbox, stop_event):
     fps = 25
     frame_time = 1.0 / fps
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -50,7 +49,7 @@ def test_recording():
     stop_event = threading.Event()
 
     # 启动录制线程
-    video_thread = threading.Thread(target=recording, args=(stop_event,))
+    video_thread = threading.Thread(target=record_screen, args=(stop_event,))
     video_thread.start()
 
     # 模拟录制一段时间
