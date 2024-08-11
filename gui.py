@@ -11,24 +11,27 @@ class ScreenRecorderApp:
         self.recording_hook = lambda: print("Recording...")
         self.end_hook = lambda: print("Recording stopped.")
 
+        self.bbox = {
+            "top": 0,
+            "left": 0,
+            "width": 128,
+            "height": 128,
+        }
+
     def init_root(self):
         self.root = tk.Tk()
+        self.root.bind("<Escape>", self.exit_program)
         self.recording = False
 
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
-        self.selection_box = {
-            "top": 0,
-            "left": 0,
-            "width": screen_width,
-            "height": screen_height,
-        }
+
         print(f"Screen size: {screen_width}x{screen_height}")
         self.root.attributes("-topmost", True)
 
         self.root.attributes("-type", "dialog")
         self.root.attributes(
-            "-alpha", 0.2
+            "-alpha", 0.25
         )  # Set transparency level (0.0 to 1.0)
         self.root.geometry(f"{screen_width}x{screen_height}")
         self.root.title(TITLE)
@@ -41,7 +44,7 @@ class ScreenRecorderApp:
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
-
+        self.selection_box = None
         self.buttons = []
 
     def on_button_press(self, event):
@@ -68,18 +71,21 @@ class ScreenRecorderApp:
         self.end_x = event.x
         self.end_y = event.y
 
-        self.bbox = {
-            "top": self.start_y,
-            "left": self.start_x,
-            "width": self.end_x - self.start_x,
-            "height": self.end_y - self.start_y,
-        }
+        self.start_x = min(self.start_x, self.end_x)
+        self.start_y = min(self.start_y, self.end_y)
+        self.end_x = max(self.start_x, self.end_x)
+        self.end_y = max(self.start_y, self.end_y)
+
+        self.bbox["top"] = self.start_y
+        self.bbox["left"] = self.start_x
+        self.bbox["width"] = self.end_x - self.start_x
+        self.bbox["height"] = self.end_y - self.start_y
 
         # 调整 root 窗口的大小和位置以匹配选择框
-        width = abs(self.end_x - self.start_x) - 2
-        height = abs(self.end_y - self.start_y) - 2
-        x = min(self.start_x, self.end_x) + 1
-        y = min(self.start_y, self.end_y) + 1
+        width = self.end_x - self.start_x - 2
+        height = self.end_y - self.start_y - 2
+        x = self.start_x + 1
+        y = self.start_y + 1
         self.root.geometry(f"{width}x{height}+{x}+{y}")
         self.root.attributes("-alpha", 0.02)
 
@@ -137,6 +143,10 @@ class ScreenRecorderApp:
 
     def run(self):
         self.root.mainloop()
+
+    def exit_program(self, event):
+        self.root.destroy()
+        exit(0)
 
 
 # Example of how to use this selection in your recording

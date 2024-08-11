@@ -5,6 +5,16 @@ from gui import ScreenRecorderApp
 from functools import partial
 import subprocess
 import argparse
+from datetime import datetime
+from config import FOLDER
+import os
+
+
+def get_file_path():
+    # using datetime as file name
+    filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+    return f"{os.path.expanduser(FOLDER)}/{filename}.mp4"
 
 
 def merge_audio_video(video_file, audio_file, output_file):
@@ -26,6 +36,12 @@ def merge_audio_video(video_file, audio_file, output_file):
     print(" ".join(command))
     subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f"Audio and video merged into {output_file}")
+
+
+def notify_send(message):
+    # 使用 notify-send 发送通知
+    command = ["notify-send", message]
+    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 
 def main():
@@ -57,12 +73,16 @@ def main():
 
     app.register_end_hook(stop_thread)
 
+    mp4_name = get_file_path()
+
     app.run()
 
     # 合并音频和视频
     print("merging audio and video...")
-    merge_audio_video("_output.mp4", "_output.wav", "output.mp4")
-    print("output.mp4 created.")
+    notify_send("merging audio and video...")
+    merge_audio_video("/tmp/_output.mp4", "/tmp/_output.wav", mp4_name)
+    print(f"Video saved to {mp4_name}")
+    notify_send(f"Video saved to {mp4_name}")
 
 
 if __name__ == "__main__":
@@ -78,4 +98,6 @@ if __name__ == "__main__":
     if args.full:
         main()
     else:
-        merge_audio_video("_output.mp4", "_output.wav", "output.mp4")
+        merge_audio_video(
+            "/tmp/_output.mp4", "/tmp/_output.wav", "/tmp/output.mp4"
+        )

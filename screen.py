@@ -7,6 +7,7 @@ import numpy as np
 import mss
 from time import time, sleep
 import threading
+from functools import partial
 
 
 def record_screen(bbox, stop_event):
@@ -15,7 +16,7 @@ def record_screen(bbox, stop_event):
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
     video = cv2.VideoWriter(
-        "_output.mp4", fourcc, fps, (bbox["width"], bbox["height"])
+        "/tmp/_output.mp4", fourcc, fps, (bbox["width"], bbox["height"])
     )
 
     with mss.mss() as sct:
@@ -48,8 +49,12 @@ def test_recording():
     # 创建一个停止事件
     stop_event = threading.Event()
 
+    record_screen_ = partial(
+        record_screen, {"top": 0, "left": 0, "width": 1920, "height": 1080}
+    )
+
     # 启动录制线程
-    video_thread = threading.Thread(target=record_screen, args=(stop_event,))
+    video_thread = threading.Thread(target=record_screen_, args=(stop_event,))
     video_thread.start()
 
     # 模拟录制一段时间

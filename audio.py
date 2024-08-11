@@ -27,7 +27,7 @@ def record_system_audio(stop_event):
     p = pyaudio.PyAudio()
     device_index = get_system_audio_devices(p)
 
-    with wave.open("_output.wav", "wb") as wf:
+    with wave.open("/tmp/_output.wav", "wb") as wf:
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(p.get_sample_size(FORMAT))
         wf.setframerate(RATE)
