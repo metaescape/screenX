@@ -1,14 +1,36 @@
 import tkinter as tk
 
 
-class SelectionBox:
-    def __init__(self, root):
-        self.root = root
-        self.start_x = None
-        self.start_y = None
-        self.rect = None
+class ScreenRecorderApp:
+    def __init__(self):
 
-        self.canvas = tk.Canvas(root, cursor="cross")
+        # 初始化窗口
+        self.init_root()
+
+    def init_root(self):
+        self.root = tk.Tk()
+        self.recoding = False
+
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        self.selection_box = {
+            "top": 0,
+            "left": 0,
+            "width": screen_width,
+            "height": screen_height,
+        }
+        print(f"Screen size: {screen_width}x{screen_height}")
+        self.root.attributes("-topmost", True)
+
+        self.root.attributes("-type", "dialog")
+        self.root.attributes(
+            "-alpha", 0.3
+        )  # Set transparency level (0.0 to 1.0)
+        self.root.geometry(f"{screen_width}x{screen_height}")
+        self.root.title("ScreenX")
+
+        self.canvas = tk.Canvas(self.root, cursor="cross")
+
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
@@ -16,15 +38,15 @@ class SelectionBox:
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
 
         self.selection_box = None
+        self.buttons = []
 
     def on_button_press(self, event):
-        # Start the selection
         self.start_x = event.x
         self.start_y = event.y
 
-        if self.rect:
-            self.canvas.delete(self.rect)
-        self.rect = self.canvas.create_rectangle(
+        if self.selection_box:
+            self.canvas.delete(self.selection_box)
+        self.selection_box = self.canvas.create_rectangle(
             self.start_x,
             self.start_y,
             self.start_x,
@@ -34,54 +56,64 @@ class SelectionBox:
         )
 
     def on_mouse_drag(self, event):
-        # Update the selection rectangle
         self.canvas.coords(
-            self.rect, self.start_x, self.start_y, event.x, event.y
+            self.selection_box, self.start_x, self.start_y, event.x, event.y
         )
 
     def on_button_release(self, event):
-        # Finalize the selection
         self.end_x = event.x
         self.end_y = event.y
 
-        self.selection_box = {
+        self.bbox = {
             "top": self.start_y,
             "left": self.start_x,
             "width": self.end_x - self.start_x,
             "height": self.end_y - self.start_y,
         }
-        self.root.quit()
 
-    def get_selection(self):
-        return self.selection_box
+        # 调整 root 窗口的大小和位置以匹配选择框
+        self.root.geometry(
+            f"{abs(self.end_x - self.start_x)}x{abs(self.end_y - self.start_y)}+{min(self.start_x, self.end_x)}+{min(self.start_y, self.end_y)}"
+        )
+        self.canvas.pack_forget()  # 移除画布，防止遮挡按钮
 
+        self.create_buttons()
 
-def select_screen_area():
-    root = tk.Tk()
-    # get screen size
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    print(f"Screen size: {screen_width}x{screen_height}")
-    root.attributes("-topmost", True)
+    def create_buttons(self):
+        button_texts = ["重选", "开始录制", "退出"]
+        commands = [self.reset_selection, self.toggle_recording, self.exit_app]
 
-    root.attributes("-type", "dialog")
-    root.attributes("-alpha", 0.3)  # Set transparency level (0.0 to 1.0)
-    root.geometry(f"{screen_width}x{screen_height}")
-    root.title("ScreenX")
-    app = SelectionBox(root)
+        for i, text in enumerate(button_texts):
+            btn = tk.Button(self.root, text=text, command=commands[i])
+            btn.pack(side=tk.RIGHT, padx=5, pady=5)
+            self.buttons.append(btn)
 
-    root.mainloop()
-    root.destroy()
+    def reset_selection(self):
+        self.root.destroy()
+        self.init_root()
 
-    return app.get_selection()
+    def toggle_recording(self):
+        if not self.recoding:
+            self.recoding = True
+            self.buttons[1].config(text="结束录制")
+            # 在这里开始录制逻辑
+        else:
+            self.recoding = False
+            self.buttons[1].config(text="开始录制")
+            # 在这里结束录制逻辑
+            self.exit_app()
+
+    def exit_app(self):
+        self.root.destroy()
+
+    def run(self):
+        self.root.mainloop()
 
 
 # Example of how to use this selection in your recording
 if __name__ == "__main__":
-    screen_area = select_screen_area()
-    if screen_area:
-        print(f"Selected area: {screen_area}")
-    else:
-        print("No area selected")
-    while True:
-        pass
+
+    app = ScreenRecorderApp()
+    app.run()
+
+    print(app.bbox)
