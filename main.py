@@ -1,7 +1,7 @@
 import threading
 from audio import record_system_audio
 from screen import record_screen
-from gui import select_screen_area
+from gui import ScreenRecorderApp
 from functools import partial
 import subprocess
 import argparse
@@ -31,27 +31,33 @@ def merge_audio_video(video_file, audio_file, output_file):
 def main():
 
     print("Select screen area to record...")
-    bbox = select_screen_area()
 
     stop_event = threading.Event()
 
+    app = ScreenRecorderApp()
     audio_thread = threading.Thread(
         target=record_system_audio, args=(stop_event,)
     )
     video_thread = threading.Thread(
-        target=partial(record_screen, bbox), args=(stop_event,)
+        target=partial(record_screen, app.bbox), args=(stop_event,)
     )
 
-    video_thread.start()
-    audio_thread.start()
+    def start_thread():
 
-    try:
-        input("Press Enter to stop recording...\n")
-    finally:
+        video_thread.start()
+        audio_thread.start()
+
+    app.register_recording_hook(start_thread)
+
+    def stop_thread():
         stop_event.set()
 
-    audio_thread.join()
-    video_thread.join()
+        audio_thread.join()
+        video_thread.join()
+
+    app.register_end_hook(stop_thread)
+
+    app.run()
 
     # 合并音频和视频
     print("merging audio and video...")
