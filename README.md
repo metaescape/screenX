@@ -6,5 +6,5 @@ sudo apt-get install pavucontrol
 ```
 
 ```
-pip install pyaudio mss
+pip install pyaudio mss ffmpeg-python
 ```
