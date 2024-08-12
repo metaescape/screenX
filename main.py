@@ -38,9 +38,9 @@ def merge_audio_video(video_file, audio_file, output_file):
     print(f"Audio and video merged into {output_file}")
 
 
-def notify_send(message):
+def notify_send(message, seconds=5):
     # 使用 notify-send 发送通知
-    command = ["notify-send", message]
+    command = ["notify-send", message, "-t", str(seconds * 1000)]
     subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 

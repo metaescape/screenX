@@ -3,6 +3,15 @@ import tkinter as tk
 TITLE = "ScreenX"
 
 
+class BorderLine(tk.Toplevel):
+    def __init__(self, root, x, y, width, height):
+        super().__init__(root)
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.overrideredirect(True)
+        self.attributes("-topmost", True)
+        self.config(bg="#bf616a")
+
+
 class ScreenRecorderApp:
     def __init__(self):
 
@@ -36,6 +45,7 @@ class ScreenRecorderApp:
         self.root.geometry(f"{screen_width}x{screen_height}")
         self.root.title(TITLE)
         self.root.configure(bg="white")
+        self.border_thickness = 2
 
         self.canvas = tk.Canvas(self.root, cursor="cross")
 
@@ -46,6 +56,7 @@ class ScreenRecorderApp:
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
         self.selection_box = None
         self.buttons = []
+        self.borders = []
 
     def on_button_press(self, event):
         self.start_x = event.x
@@ -82,14 +93,40 @@ class ScreenRecorderApp:
         self.bbox["height"] = self.end_y - self.start_y
 
         # 调整 root 窗口的大小和位置以匹配选择框
-        width = self.end_x - self.start_x - 2
-        height = self.end_y - self.start_y - 2
-        x = self.start_x + 1
-        y = self.start_y + 1
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
-        self.root.attributes("-alpha", 0.02)
+        width = self.end_x - self.start_x + 2
+        height = self.end_y - self.start_y + 2
+        x = self.start_x - 1
+        y = self.start_y - 1
+
+        self.transparent_window_with_borders(x, y, width, height)
 
         self.create_button_window()
+
+    def transparent_window_with_borders(self, x, y, width, height):
+        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        self.root.attributes("-alpha", 0)
+
+        top_border = BorderLine(self.root, x, y, width, self.border_thickness)
+
+        left_border = BorderLine(
+            self.root, x, y, self.border_thickness, height
+        )
+
+        bottom_border = BorderLine(
+            self.root,
+            x,
+            y + height - self.border_thickness,
+            width,
+            self.border_thickness,
+        )
+        right_border = BorderLine(
+            self.root,
+            x + width - self.border_thickness,
+            y,
+            self.border_thickness,
+            height,
+        )
+        self.borders = [top_border, left_border, bottom_border, right_border]
 
     def create_button_window(self):
         self.button_window = tk.Toplevel(self.root)
@@ -110,7 +147,7 @@ class ScreenRecorderApp:
         reset_button.pack(side=tk.BOTTOM, padx=5, pady=5)
 
         exit_button = tk.Button(
-            self.button_window, text="exit", command=self.exit_app
+            self.button_window, text="exit", command=self.exit_program
         )
         exit_button.pack(side=tk.BOTTOM, padx=5, pady=5)
         self.buttons = [confirm_button, reset_button, exit_button]
@@ -144,7 +181,7 @@ class ScreenRecorderApp:
     def run(self):
         self.root.mainloop()
 
-    def exit_program(self, event):
+    def exit_program(self, event=None):
         self.root.destroy()
         exit(0)
 
