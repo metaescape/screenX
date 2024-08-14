@@ -8,6 +8,8 @@ import argparse
 from datetime import datetime
 from config import FOLDER
 import os
+import queue
+import cv2
 
 
 def get_file_path(ext="mp4"):
@@ -48,19 +50,27 @@ def main():
 
     print("Select screen area to record...")
 
+    result_queue = queue.Queue()
+
     stop_event = threading.Event()
 
     app = ScreenRecorderApp()
 
-    capture_thread = threading.Thread(
-        target=partial(capture_screen),
-        args=(app.bbox, lambda: get_file_path("png")),
-    )
-
     def exec_capture():
+        def wrapper():
+            frame = capture_screen(app.bbox)
+            result_queue.put(frame)
+
+        capture_thread = threading.Thread(target=wrapper)
+
         capture_thread.start()
-        notify_send(f"png file saved to {get_file_path('png')} ")
-        exit(0)
+        capture_thread.join()
+
+        captured_frame = result_queue.get()
+        # save the captured frame
+        filename = get_file_path("png")
+        cv2.imwrite(filename, captured_frame)
+        notify_send(f"Image saved to {filename}")
 
     app.register_capture_image_hook(exec_capture)
 

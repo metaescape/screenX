@@ -10,24 +10,15 @@ import threading
 from functools import partial
 
 
-def capture_screen(bbox, filename=None):
+def capture_screen(bbox):
     with mss.mss() as sct:
         sct_img = sct.grab(bbox)
         frame = np.array(sct_img)
 
         if frame.shape[2] == 4:
             frame = cv2.cvtColor(frame, cv2.COLOR_RGBA2RGB)
-            # preview
-            cv2.imshow("Preview", frame)
-            cv2.waitKey(0)
-            cv2.destroyAllWindows()
-            if type(filename) is str:
-                cv2.imwrite(filename, frame)
-            elif callable(filename):
-                filename = filename()
-                cv2.imwrite(filename, frame)
 
-        return filename
+        return frame
 
 
 def record_screen(bbox, stop_event):
