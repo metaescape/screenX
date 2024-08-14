@@ -1,6 +1,6 @@
 import threading
 from audio import record_system_audio
-from screen import record_screen
+from screen import record_screen, capture_screen
 from gui import ScreenRecorderApp
 from functools import partial
 import subprocess
@@ -10,11 +10,11 @@ from config import FOLDER
 import os
 
 
-def get_file_path():
+def get_file_path(ext="mp4"):
     # using datetime as file name
     filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-    return f"{os.path.expanduser(FOLDER)}/{filename}.mp4"
+    return f"{os.path.expanduser(FOLDER)}/{filename}.{ext}"
 
 
 def merge_audio_video(video_file, audio_file, output_file):
@@ -51,6 +51,19 @@ def main():
     stop_event = threading.Event()
 
     app = ScreenRecorderApp()
+
+    capture_thread = threading.Thread(
+        target=partial(capture_screen),
+        args=(app.bbox, lambda: get_file_path("png")),
+    )
+
+    def exec_capture():
+        capture_thread.start()
+        notify_send(f"png file saved to {get_file_path('png')} ")
+        exit(0)
+
+    app.register_capture_image_hook(exec_capture)
+
     audio_thread = threading.Thread(
         target=record_system_audio, args=(stop_event,)
     )
@@ -73,7 +86,7 @@ def main():
 
     app.register_end_hook(stop_thread)
 
-    mp4_name = get_file_path()
+    mp4_name = get_file_path("mp4")
 
     app.run()
 

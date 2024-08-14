@@ -55,7 +55,7 @@ class ScreenRecorderApp:
         self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
         self.selection_box = None
-        self.buttons = []
+        self.buttons = {}
         self.borders = []
 
     def on_button_press(self, event):
@@ -93,10 +93,10 @@ class ScreenRecorderApp:
         self.bbox["height"] = self.end_y - self.start_y
 
         # 调整 root 窗口的大小和位置以匹配选择框
-        width = self.end_x - self.start_x + 2
-        height = self.end_y - self.start_y + 2
-        x = self.start_x - 1
-        y = self.start_y - 1
+        width = self.end_x - self.start_x + 4
+        height = self.end_y - self.start_y + 4
+        x = self.start_x - 2
+        y = self.start_y - 2
 
         self.transparent_window_with_borders(x, y, width, height)
 
@@ -136,38 +136,56 @@ class ScreenRecorderApp:
         )  # 将按钮窗口放置在选择框的右侧
         self.button_window.attributes("-alpha", 1.0)  # 确保按钮窗口不透明
 
-        confirm_button = tk.Button(
-            self.button_window, text="record", command=self.toggle_recording
+        video_button = tk.Button(
+            self.button_window,
+            text="video",
+            command=self.toggle_video_recording,
         )
-        confirm_button.pack(side=tk.TOP, padx=5, pady=5)
+        video_button.pack(side=tk.TOP, padx=5, pady=5)
+
+        image_button = tk.Button(
+            self.button_window,
+            text="image",
+            command=self.capture_image,
+        )
+        image_button.pack(side=tk.TOP, padx=5, pady=5)
 
         reset_button = tk.Button(
             self.button_window, text="resel", command=self.reset_selection
         )
-        reset_button.pack(side=tk.BOTTOM, padx=5, pady=5)
+        reset_button.pack(side=tk.TOP, padx=5, pady=5)
 
         exit_button = tk.Button(
             self.button_window, text="exit", command=self.exit_program
         )
-        exit_button.pack(side=tk.BOTTOM, padx=5, pady=5)
-        self.buttons = [confirm_button, reset_button, exit_button]
+        exit_button.pack(side=tk.TOP, padx=5, pady=5)
+        self.buttons = {
+            "video": video_button,
+            "image": image_button,
+            "reset": reset_button,
+            "exit": exit_button,
+        }
 
     def reset_selection(self):
         self.root.destroy()
         self.init_root()
 
-    def toggle_recording(self):
+    def toggle_video_recording(self):
         if not self.recording:
             self.recording = True
             self.recording_hook()
-            self.buttons[0].config(text="stop")
-            # 在这里开始录制逻辑
+            self.buttons["video"].config(text="stop")
         else:
             self.recording = False
-            self.buttons[0].config(text="record")
+            self.buttons["video"].config(text="video")
             self.end_hook()
-            # 在这里结束录制逻辑
             self.exit_app()
+
+    def capture_image(self):
+        self.capture_image_hook()
+
+    def register_capture_image_hook(self, hook):
+        self.capture_image_hook = hook
 
     def register_recording_hook(self, hook):
         self.recording_hook = hook
