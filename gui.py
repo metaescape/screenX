@@ -2,6 +2,14 @@ import tkinter as tk
 
 TITLE = "ScreenX"
 
+import subprocess
+
+
+def notify_send(message, seconds=5):
+    # 使用 notify-send 发送通知
+    command = ["notify-send", message, "-t", str(seconds * 1000)]
+    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
 
 class BorderLine(tk.Toplevel):
     def __init__(self, root, x, y, width, height):
@@ -19,7 +27,8 @@ class ScreenRecorderApp:
         self.init_root()
         self.recording_hook = lambda: print("Recording...")
         self.end_hook = lambda: print("Recording stopped.")
-
+        self.stop_event = None
+        self.threads = []
         self.bbox = {
             "top": 0,
             "left": 0,
@@ -143,6 +152,13 @@ class ScreenRecorderApp:
         )
         video_button.pack(side=tk.TOP, padx=5, pady=5)
 
+        gif_button = tk.Button(
+            self.button_window,
+            text="gif",
+            command=self.toggle_gif_recording,
+        )
+        gif_button.pack(side=tk.TOP, padx=5, pady=5)
+
         image_button = tk.Button(
             self.button_window,
             text="image",
@@ -162,6 +178,7 @@ class ScreenRecorderApp:
         self.buttons = {
             "video": video_button,
             "image": image_button,
+            "gif": gif_button,
             "reset": reset_button,
             "exit": exit_button,
         }
@@ -173,13 +190,24 @@ class ScreenRecorderApp:
     def toggle_video_recording(self):
         if not self.recording:
             self.recording = True
-            self.recording_hook()
+            self.stop_event, *self.threads = self.start_video_hook()
             self.buttons["video"].config(text="stop")
         else:
             self.recording = False
             self.buttons["video"].config(text="video")
-            self.end_hook()
-            self.exit_app()
+            self.stop_recording()
+            self.stop_video_hook()
+
+    def toggle_gif_recording(self):
+        if not self.recording:
+            self.recording = True
+            self.stop_event, *self.threads = self.start_gif_hook()
+            self.buttons["gif"].config(text="stop")
+        else:
+            self.recording = False
+            self.buttons["gif"].config(text="gif")
+            self.stop_recording()
+            self.stop_gif_hook()
 
     def capture_image(self):
         self.capture_image_hook()
@@ -187,11 +215,18 @@ class ScreenRecorderApp:
     def register_capture_image_hook(self, hook):
         self.capture_image_hook = hook
 
-    def register_recording_hook(self, hook):
-        self.recording_hook = hook
+    def register_video_hooks(self, start_hook, end_hook):
+        self.start_video_hook = start_hook
+        self.stop_video_hook = end_hook
 
-    def register_end_hook(self, hook):
-        self.end_hook = hook
+    def register_gif_hooks(self, start_hook, end_hook):
+        self.start_gif_hook = start_hook
+        self.stop_gif_hook = end_hook
+
+    def stop_recording(self):
+        self.stop_event.set()
+        for thread in self.threads:
+            thread.join()
 
     def exit_app(self):
         self.root.destroy()
