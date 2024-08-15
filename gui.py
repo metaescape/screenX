@@ -6,7 +6,7 @@ import sys
 TITLE = "ScreenX"
 
 
-def notify_send(message, seconds=5):
+def notify_send(message, seconds=10):
     # 使用 notify-send 发送通知
     command = ["notify-send", message, "-t", str(seconds * 1000)]
     subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
