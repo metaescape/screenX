@@ -20,7 +20,27 @@ def get_file_path(ext="mp4"):
     return f"{os.path.expanduser(FOLDER)}/{filename}.{ext}"
 
 
+def normalize_audio(audio_file):
+    # 处理音频文件（降噪和规范化）
+    command = [
+        "ffmpeg",
+        "-i",
+        audio_file,
+        "-af",
+        "afftdn,loudnorm=I=-23:TP=-1.5:LRA=11",
+        "-c:a",
+        "libmp3lame",
+        audio_file,
+    ]
+    print("running audio processing command:")
+    print(" ".join(command))
+    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    print(f"Audio processed and saved to {audio_file}")
+
+
 def merge_audio_video(video_file, audio_file, output_file):
+
+    normalize_audio(audio_file)
     # 使用 ffmpeg 将音频和视频合成一个 mp4 文件
     command = [
         "ffmpeg",
