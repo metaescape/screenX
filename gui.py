@@ -49,7 +49,7 @@ class ScreenRecorderApp:
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
 
-        print(f"Screen size: {screen_width}x{screen_height}")
+        # print(f"Screen size: {screen_width}x{screen_height}")
         self.root.attributes("-topmost", True)
 
         self.root.attributes("-type", "dialog")
@@ -202,9 +202,13 @@ class ScreenRecorderApp:
 
     def run_timer(self, seconds):
         print(f"Timer started for {seconds} seconds.")
-        time.sleep(seconds)
+        for i in range(seconds):
+            self.input_area.delete(0, tk.END)
+            self.input_area.insert(0, str(seconds - i))
+            time.sleep(1)
+        self.input_area.delete(0, tk.END)
+        self.input_area.insert(0, str(seconds))
         self.toggle_recording(self.recording)
-        print("Timer ended, event is set.")
 
     def create_button_window(self):
         self.button_window = tk.Toplevel(self.root)
@@ -276,13 +280,14 @@ class ScreenRecorderApp:
             if self.recording != media:
                 notify_send(f"Please stop {self.recording} recording first.")
                 return
-            self.recording = ""
-            self.buttons[media].config(text=media)
+            self.buttons[media].config(text="saving...")
             self.stop_recording()
             if media == "video":
                 self.stop_video_hook()
             elif media == "gif":
                 self.stop_gif_hook()
+            self.recording = ""
+            self.buttons[media].config(text=media)
 
     def capture_image(self):
         self.capture_image_hook()
