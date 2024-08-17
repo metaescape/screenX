@@ -3,6 +3,7 @@ import sys
 import threading
 from time import sleep
 import pyaudio
+import queue
 
 
 def get_system_audio_devices(p: pyaudio.PyAudio):
@@ -18,7 +19,7 @@ def get_system_audio_devices(p: pyaudio.PyAudio):
         raise ValueError("PulseAudio virtual device not found")
 
 
-def record_system_audio(stop_event):
+def record_system_audio_sync(stop_event):
     CHUNK = 1024
     FORMAT = pyaudio.paInt16
     CHANNELS = 1 if sys.platform == "darwin" else 2
@@ -49,6 +50,59 @@ def record_system_audio(stop_event):
     stream.stop_stream()
     stream.close()
     p.terminate()
+
+
+def record_system_audio(stop_event):
+    """
+    async version of record_system_audio_sync
+    """
+    CHUNK = 1024
+    FORMAT = pyaudio.paInt16
+    CHANNELS = 1 if sys.platform == "darwin" else 2
+    RATE = 44100
+
+    p = pyaudio.PyAudio()
+    device_index = get_system_audio_devices(p)
+
+    q = queue.Queue()
+
+    def write_audio_to_file():
+        with wave.open("/tmp/_output.wav", "wb") as wf:
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(p.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+
+            while not stop_event.is_set() or not q.empty():
+                data = q.get()
+                if data:
+                    wf.writeframes(data)
+
+    stream = p.open(
+        format=FORMAT,
+        channels=CHANNELS,
+        rate=RATE,
+        input=True,
+        input_device_index=device_index,
+        frames_per_buffer=CHUNK,
+    )
+
+    writer_thread = threading.Thread(target=write_audio_to_file)
+    writer_thread.start()
+
+    print("Recording system audio...")
+    try:
+        while not stop_event.is_set():
+            try:
+                data = stream.read(CHUNK, exception_on_overflow=False)
+                q.put(data)
+            except IOError as e:
+                print(f"Error recording audio: {e}")
+    finally:
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
+        writer_thread.join()
+    print("Audio recording stopped.")
 
 
 def test_recording():

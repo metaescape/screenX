@@ -21,6 +21,18 @@ def get_file_path(ext="mp4"):
     return f"{os.path.expanduser(FOLDER)}/{filename}.{ext}"
 
 
+def run_command(command):
+    try:
+        result = subprocess.run(
+            command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e.stderr.decode()}")
+        notify_send(f"Error: {e.stderr.decode()[:200]}...")
+        exit(1)
+
+
 def normalize_audio(input_file, output_file):
     # 处理音频文件（降噪和规范化）
     command = [
@@ -29,13 +41,19 @@ def normalize_audio(input_file, output_file):
         input_file,
         "-af",
         "afftdn,loudnorm=I=-23:TP=-1.5:LRA=11",
-        "-c:v copy -c:a aac -b:a 192k",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
         output_file,
         "-y",
     ]
+
     print("running audio processing command:")
     print(" ".join(command))
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    run_command(command)
     notify_send(f"Audio normalized and noise reduced")
 
 
@@ -55,9 +73,9 @@ def merge_audio_video(video_file, audio_file, output_file):
         output_file,
         "-y",
     ]
-    print("running command:")
+    print("running video and audio merge command:")
     print(" ".join(command))
-    subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    run_command(command)
     notify_send(f"Audio and video merged into {output_file}")
 
 
