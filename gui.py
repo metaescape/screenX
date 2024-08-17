@@ -260,6 +260,9 @@ class ScreenRecorderApp:
         }
 
     def reset_selection(self):
+        if self.recording:
+            notify_send(f"Please stop {self.recording} recording first.")
+            return
         self.root.destroy()
         self.init_root()
 
@@ -270,6 +273,9 @@ class ScreenRecorderApp:
             self.stop_event, *self.threads = self.start_video_hook()
             self.buttons[media].config(text="stop")
         else:
+            if self.recording != media:
+                notify_send(f"Please stop {self.recording} recording first.")
+                return
             self.recording = ""
             self.buttons[media].config(text=media)
             self.stop_recording()
