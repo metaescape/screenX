@@ -9,6 +9,7 @@ from config import FOLDER
 import os
 import queue
 import cv2
+import time
 
 result_queue = queue.Queue()
 
@@ -20,7 +21,7 @@ def get_file_path(ext="mp4"):
     return f"{os.path.expanduser(FOLDER)}/{filename}.{ext}"
 
 
-def normalize_audio(input_file):
+def normalize_audio(input_file, output_file):
     # 处理音频文件（降噪和规范化）
     command = [
         "ffmpeg",
@@ -29,7 +30,8 @@ def normalize_audio(input_file):
         "-af",
         "afftdn,loudnorm=I=-23:TP=-1.5:LRA=11",
         "-c:v copy -c:a aac -b:a 192k",
-        input_file,
+        output_file,
+        "-y",
     ]
     print("running audio processing command:")
     print(" ".join(command))
@@ -38,6 +40,7 @@ def normalize_audio(input_file):
 
 
 def merge_audio_video(video_file, audio_file, output_file):
+
     # 使用 ffmpeg 将音频和视频合成一个 mp4 文件
     command = [
         "ffmpeg",
@@ -49,14 +52,13 @@ def merge_audio_video(video_file, audio_file, output_file):
         "libx264",
         "-acodec",
         "libmp3lame",
-        "-y",
         output_file,
+        "-y",
     ]
     print("running command:")
     print(" ".join(command))
     subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     notify_send(f"Audio and video merged into {output_file}")
-    normalize_audio(output_file)
 
 
 def turn_video_to_gif(video_file, output_file):
@@ -80,9 +82,17 @@ def save_video():
     # 合并音频和视频
     print("merging audio and video...")
     notify_send("merging audio and video...")
-    merge_audio_video("/tmp/_output.mp4", "/tmp/_output.wav", mp4_name)
+    time_before = time.time()
+    normalize_audio("/tmp/_output.wav", "/tmp/_output_normalized.mp4")
+    merge_audio_video(
+        "/tmp/_output.mp4", "/tmp/_output_normalized.mp4", mp4_name
+    )
+    # merge_audio_video("/tmp/_output.mp4", "/tmp/_output.wav", mp4_name)
     print(f"Video saved to {mp4_name}")
     notify_send(f"Video saved to {mp4_name}")
+    time_after = time.time()
+
+    notify_send(f"Cost: {time_after - time_before:.2f}s")
 
 
 def save_gif():
