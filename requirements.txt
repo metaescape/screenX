@@ -1,3 +1,4 @@
 pyaudio
 Pillow
 opencv-python
+mss
