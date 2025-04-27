@@ -70,7 +70,6 @@ class ScreenRecorderApp:
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
         self.selection_box = None
         self.buttons = {}
-        self.borders = []
 
     def update_bbox(self):
         self.bbox = {
@@ -95,11 +94,6 @@ class ScreenRecorderApp:
                 outline="black",
                 width=2,
             )
-        elif self.state == "focused":
-            self.button_window.attributes("-alpha", 0)
-            self.root.attributes("-alpha", 0.4)
-            self.x = event.x
-            self.y = event.y
 
     def on_mouse_drag(self, event):
         if self.state == "normal":
@@ -110,12 +104,6 @@ class ScreenRecorderApp:
                 event.x,
                 event.y,
             )
-        elif self.state == "focused":
-            deltax = event.x - self.x
-            deltay = event.y - self.y
-            x = self.root.winfo_x() + deltax
-            y = self.root.winfo_y() + deltay
-            self.root.geometry(f"+{x}+{y}")
 
     def on_button_release(self, event):
         if self.state == "normal":
@@ -140,58 +128,49 @@ class ScreenRecorderApp:
             self.bbox["width"] = self.end_x - self.start_x
             self.bbox["height"] = self.end_y - self.start_y
 
-            # 调整 root 窗口的大小和位置以匹配选择框
-            width = self.end_x - self.start_x + 4
-            height = self.end_y - self.start_y + 4
-            x = self.start_x - 2
-            y = self.start_y - 2
-
-            self.transparent_window_with_borders(x, y, width, height)
+            self.transparent_window_with_borders(
+                self.start_x,
+                self.start_y,
+                self.bbox["width"],
+                self.bbox["height"],
+            )
             self.create_button_window()
-
-        elif self.state == "focused":
-            self.x = None
-            self.y = None
-            x, y = self.root.winfo_x(), self.root.winfo_y()
-            width, height = self.root.winfo_width(), self.root.winfo_height()
-            self.button_window.attributes("-alpha", 1.0)
-            self.end_x = x + width
-            self.start_y = y
-
-            self.button_window.geometry(f"+{self.end_x}+{self.start_y}")
-
-            for border in self.borders:
-                border.destroy()
-
-            self.transparent_window_with_borders(x, y, width, height)
-            self.update_bbox()
 
     def transparent_window_with_borders(self, x, y, width, height):
         self.state = "readonly"
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        self.root.geometry(f"{1}x{1}+{x}+{y}")
         self.root.attributes("-alpha", 0)
 
-        top_border = BorderLine(self.root, x, y, width, self.border_thickness)
-
-        left_border = BorderLine(
-            self.root, x, y, self.border_thickness, height
-        )
-
-        bottom_border = BorderLine(
+        BorderLine(
             self.root,
             x,
-            y + height - self.border_thickness,
+            y - self.border_thickness,
             width,
             self.border_thickness,
         )
-        right_border = BorderLine(
+
+        BorderLine(
             self.root,
-            x + width - self.border_thickness,
+            x - self.border_thickness,
             y,
             self.border_thickness,
             height,
         )
-        self.borders = [top_border, left_border, bottom_border, right_border]
+
+        BorderLine(
+            self.root,
+            x,
+            y + height,
+            width,
+            self.border_thickness,
+        )
+        BorderLine(
+            self.root,
+            x + width,
+            y,
+            self.border_thickness,
+            height,
+        )
 
     def validate_input(self, value):
         if value.isdigit() or value == "":
