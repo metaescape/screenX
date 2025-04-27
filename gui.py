@@ -56,7 +56,7 @@ class ScreenRecorderApp:
         self.root.attributes(
             "-alpha", 0.25
         )  # Set transparency level (0.0 to 1.0)
-        self.root.geometry(f"{screen_width}x{screen_height}")
+        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
         self.root.title(TITLE)
         self.root.configure(bg="white")
         self.border_thickness = 2
@@ -122,10 +122,19 @@ class ScreenRecorderApp:
             self.end_x = event.x
             self.end_y = event.y
 
-            self.start_x = min(self.start_x, self.end_x)
-            self.start_y = min(self.start_y, self.end_y)
-            self.end_x = max(self.start_x, self.end_x)
-            self.end_y = max(self.start_y, self.end_y)
+            self.start_x = (
+                min(self.start_x, self.end_x) + self.root.winfo_rootx()
+            )
+
+            self.start_y = (
+                min(self.start_y, self.end_y) + self.root.winfo_rooty()
+            )
+            self.end_x = (
+                max(self.start_x, self.end_x) + self.root.winfo_rootx()
+            )
+            self.end_y = (
+                max(self.start_y, self.end_y) + self.root.winfo_rooty()
+            )
             self.bbox["top"] = self.start_y
             self.bbox["left"] = self.start_x
             self.bbox["width"] = self.end_x - self.start_x
