@@ -32,6 +32,7 @@ class ScreenRecorderApp:
         self.recording_hook = lambda: print("Recording...")
         self.end_hook = lambda: print("Recording stopped.")
         self.stop_event = None
+        self.pause_event = None
         self.threads = []
         self.bbox = {
             "top": 0,
@@ -43,7 +44,6 @@ class ScreenRecorderApp:
     def init_root(self):
         self.root = tk.Tk()
         self.root.bind("<Escape>", self.exit_program)
-        self.recording = ""
 
         # print(f"Screen size: {screen_width}x{screen_height}")
         self.root.attributes("-topmost", True)
@@ -56,7 +56,8 @@ class ScreenRecorderApp:
         self.reset_root()
 
     def reset_root(self):
-        self.state = "normal"
+        self.state = "to_select"
+        self.recording_seconds = 0
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.root.geometry(f"{screen_width}x{screen_height}+0+0")
@@ -92,12 +93,12 @@ class ScreenRecorderApp:
         }
 
     def on_button_press(self, event):
-        if self.state == "normal":
+        if self.state == "to_select":
             self.start_x = event.x
             self.start_y = event.y
 
     def on_mouse_drag(self, event):
-        if self.state == "normal":
+        if self.state == "to_select":
             # update the coordinates of the selection box
             self.canvas.coords(
                 self.selection_box,
@@ -108,7 +109,7 @@ class ScreenRecorderApp:
             )
 
     def on_button_release(self, event):
-        if self.state == "normal":
+        if self.state == "to_select":
             self.end_x = event.x
             self.end_y = event.y
 
@@ -140,7 +141,7 @@ class ScreenRecorderApp:
             self.create_button_window(left_top_x, left_top_y)
 
     def transparent_window_with_borders(self, x, y, width, height):
-        self.state = "readonly"
+        self.state = "to_record"
         self.root.attributes("-alpha", 0)
 
         b1 = BorderLine(
@@ -180,24 +181,6 @@ class ScreenRecorderApp:
             return True
         else:
             return False
-
-    def start_timer(self):
-        # 获取用户输入的秒数
-        input_value = self.input_area.get()
-
-        if input_value.isdigit():
-            seconds = int(input_value)
-            # 启动后台线程来计时
-            threading.Thread(target=self.run_timer, args=(seconds,)).start()
-
-    def run_timer(self, seconds):
-        for i in range(seconds):
-            self.input_area.delete(0, tk.END)
-            self.input_area.insert(0, str(seconds - i))
-            time.sleep(1)
-        self.input_area.delete(0, tk.END)
-        self.input_area.insert(0, str(seconds))
-        self.toggle_recording(self.recording)
 
     def create_button_window(self, x, y):
         self.button_window = tk.Toplevel(self.root)
@@ -276,26 +259,78 @@ class ScreenRecorderApp:
         self.reset_root()
 
     def toggle_recording(self, media="video"):
-        if not self.recording:
-            self.recording = media
-            self.start_timer()
-            self.stop_event, *self.threads = self.start_video_hook()
-            self.buttons[media].config(text="stop")
-        else:
-            if self.recording != media:
-                notify_send(f"Please stop {self.recording} recording first.")
-                return
-            self.buttons[media].config(text="saving...")
+        if self.state == "to_record":
+            self.state = f"recording_{media}"
+            if media == "video":
+                self.stop_event, self.pause_event, *self.threads = (
+                    self.start_video_hook()
+                )
+                self.update_video_button_text()
+            else:
+                self.stop_event, self.pause_event, *self.threads = (
+                    self.start_gif_hook()
+                )
+                self.update_gif_button_text()
+        elif (
+            self.state == f"recording_{media}"
+            or self.state == f"pause_{media}"
+        ):
+            self.state = "to_record"
             self.stop_recording()
             if media == "video":
                 self.stop_video_hook()
             elif media == "gif":
                 self.stop_gif_hook()
-            self.recording = ""
             self.buttons[media].config(text=media)
+        else:
+            notify_send(
+                f"Invalid state: {self.state}. Cannot toggle recording"
+            )
 
     def capture_image(self):
         self.capture_image_hook()
+
+    def update_video_button_text(self):
+        if self.state == "recording_video":
+            self.buttons["video"].config(text=f"{self.recording_seconds}")
+            self.timer_id = self.root.after(
+                1000, self.update_video_button_text
+            )
+            # 获取用户输入的秒数
+            input_value = self.input_area.get()
+
+            if input_value.isdigit():
+                limit = int(input_value)
+                if self.recording_seconds > limit and limit != 0:
+                    self.toggle_recording("video")
+                    notify_send(f"Video recording stopped after {limit}s")
+            self.recording_seconds += 1
+
+        else:
+            if hasattr(self, "timer_id"):
+                self.root.after_cancel(self.timer_id)
+            self.buttons["video"].config(text="video")
+            self.recording_seconds = 0
+
+    def update_gif_button_text(self):
+        if self.state == "recording_gif":
+            self.buttons["gif"].config(text=f"{self.recording_seconds}")
+            self.timer_id = self.root.after(1000, self.update_gif_button_text)
+
+            # 获取用户输入的秒数
+            input_value = self.input_area.get()
+
+            if input_value.isdigit():
+                limit = int(input_value)
+                if self.recording_seconds > limit and limit != 0:
+                    self.toggle_recording("gif")
+                    notify_send(f"GIF recording stopped after {limit}s")
+            self.recording_seconds += 1
+        else:
+            if hasattr(self, "timer_id"):
+                self.root.after_cancel(self.timer_id)
+            self.buttons["gif"].config(text="gif")
+            self.recording_seconds = 0
 
     def register_capture_image_hook(self, hook):
         self.capture_image_hook = hook
@@ -316,6 +351,9 @@ class ScreenRecorderApp:
         self.stop_event.set()
         for thread in self.threads:
             thread.join()
+
+    def pause_recording(self):
+        self.pause_event.clear()
 
     def exit_app(self):
         self.root.destroy()

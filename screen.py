@@ -21,7 +21,7 @@ def capture_screen(bbox):
         return frame
 
 
-def record_screen(bbox, stop_event):
+def record_screen(bbox, stop_event, pause_event):
     fps = 60
     frame_time = 1.0 / fps
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
@@ -42,6 +42,8 @@ def record_screen(bbox, stop_event):
                 continue
 
             last_frame_time = time()
+
+            pause_event.wait()
 
             sct_img = sct.grab(bbox)
             frame = np.array(sct_img)

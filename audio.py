@@ -52,7 +52,7 @@ def record_system_audio_sync(stop_event):
     p.terminate()
 
 
-def record_system_audio(stop_event):
+def record_system_audio(stop_event, pause_event):
     """
     async version of record_system_audio_sync
     """
@@ -93,6 +93,7 @@ def record_system_audio(stop_event):
     try:
         while not stop_event.is_set():
             try:
+                pause_event.wait()  # Wait for the pause event to be set
                 data = stream.read(CHUNK, exception_on_overflow=False)
                 q.put(data)
             except IOError as e:

@@ -142,44 +142,37 @@ def exec_capture(app):
     return _exec_capture
 
 
-def start_video(app):
+def start_recording(app, media="video"):
     def _start_video():
         stop_event = threading.Event()
-        audio_thread = threading.Thread(
-            target=record_system_audio, args=(stop_event,)
-        )
+        pause_event = threading.Event()
+
+        pause_event.set()
+
+        if media == "gif":
+            # For GIF, we don't need audio recording
+            audio_thread = None
+        else:
+            # For video, we need to record system audio
+            audio_thread = threading.Thread(
+                target=record_system_audio, args=(stop_event, pause_event)
+            )
         video_thread = threading.Thread(
             target=record_screen,
             args=(
                 app.bbox,
                 stop_event,
+                pause_event,
             ),
         )
 
         video_thread.start()
-        audio_thread.start()
-
-        return stop_event, video_thread, audio_thread
+        if audio_thread:
+            audio_thread.start()
+            return stop_event, pause_event, video_thread, audio_thread
+        return stop_event, pause_event, video_thread
 
     return _start_video
-
-
-def start_gif(app):
-    def _start_gif():
-        stop_event = threading.Event()
-        video_thread = threading.Thread(
-            target=record_screen,
-            args=(
-                app.bbox,
-                stop_event,
-            ),
-        )
-
-        video_thread.start()
-
-        return stop_event, video_thread
-
-    return _start_gif
 
 
 def main():
@@ -188,8 +181,8 @@ def main():
     app = ScreenRecorderApp()
 
     app.register_capture_image_hook(exec_capture(app))
-    app.register_video_hooks(start_video(app), save_video)
-    app.register_gif_hooks(start_gif(app), save_gif)
+    app.register_video_hooks(start_recording(app), save_video)
+    app.register_gif_hooks(start_recording(app, "gif"), save_gif)
 
     app.run()
 
