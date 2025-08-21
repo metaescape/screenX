@@ -227,7 +227,7 @@ class ScreenRecorderApp:
 
         image_button = tk.Button(
             self.button_window,
-            text="image",
+            text="img",
             command=self.capture_image,
         )
         image_button.pack(side=tk.LEFT)
@@ -238,7 +238,7 @@ class ScreenRecorderApp:
         reset_button.pack(side=tk.LEFT)
 
         exit_button = tk.Button(
-            self.button_window, text="exit", command=self.exit_program
+            self.button_window, text="X", command=self.exit_program
         )
         exit_button.pack(side=tk.LEFT)
         self.buttons = {

@@ -22,7 +22,7 @@ def capture_screen(bbox):
 
 
 def record_screen(bbox, stop_event):
-    fps = 25
+    fps = 60
     frame_time = 1.0 / fps
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 
