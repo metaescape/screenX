@@ -63,10 +63,10 @@ def record_system_audio(stop_event, pause_event):
 
     p = pyaudio.PyAudio()
     device_index = get_system_audio_devices(p)
-
     q = queue.Queue()
 
     def write_audio_to_file():
+
         with wave.open("/tmp/_output.wav", "wb") as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(p.get_sample_size(FORMAT))

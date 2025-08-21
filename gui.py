@@ -208,6 +208,13 @@ class ScreenRecorderApp:
         )
         gif_button.pack(side=tk.LEFT)
 
+        pause_button = tk.Button(
+            self.button_window,
+            text="pause",
+            command=self.toggle_pause,
+        )
+        pause_button.pack(side=tk.LEFT)
+
         image_button = tk.Button(
             self.button_window,
             text="img",
@@ -228,6 +235,7 @@ class ScreenRecorderApp:
             "video": video_button,
             "image": image_button,
             "gif": gif_button,
+            "pause": pause_button,
             "reset": reset_button,
             "exit": exit_button,
         }
@@ -242,7 +250,13 @@ class ScreenRecorderApp:
         self.root.geometry(f"{width+20}x{height}+{x-20}+{y-height-2}")
 
     def reset_selection(self):
-        if self.recording:
+        if self.state in [
+            "recording_video",
+            "recording_gif",
+            "pause_video",
+            "pause_gif ",
+        ]:
+            self.state = "to_record"
             self.exit_recording()
             notify_send(f"exit recording")
             return
@@ -287,6 +301,20 @@ class ScreenRecorderApp:
                 f"Invalid state: {self.state}. Cannot toggle recording"
             )
 
+    def toggle_pause(self):
+        if self.state.startswith("recording_"):
+            media = self.state.split("_")[1]
+            self.state = f"pause_{media}"
+            self.pause_event.clear()
+            self.buttons["pause"].config(text="resume")
+        elif self.state.startswith("pause_"):
+            media = self.state.split("_")[1]
+            self.state = f"recording_{media}"
+            self.pause_event.set()
+            self.buttons["pause"].config(text="pause")
+        else:
+            notify_send(f"Cannot pause/resume in state: {self.state}")
+
     def capture_image(self):
         self.capture_image_hook()
 
@@ -305,7 +333,10 @@ class ScreenRecorderApp:
                     self.toggle_recording("video")
                     notify_send(f"Video recording stopped after {limit}s")
             self.recording_seconds += 1
-
+        elif self.state == "pause_video":
+            self.timer_id = self.root.after(
+                1000, self.update_video_button_text
+            )
         else:
             if hasattr(self, "timer_id"):
                 self.root.after_cancel(self.timer_id)
@@ -326,6 +357,8 @@ class ScreenRecorderApp:
                     self.toggle_recording("gif")
                     notify_send(f"GIF recording stopped after {limit}s")
             self.recording_seconds += 1
+        elif self.state == "pause_gif":
+            self.timer_id = self.root.after(1000, self.update_gif_button_text)
         else:
             if hasattr(self, "timer_id"):
                 self.root.after_cancel(self.timer_id)
@@ -351,9 +384,6 @@ class ScreenRecorderApp:
         self.stop_event.set()
         for thread in self.threads:
             thread.join()
-
-    def pause_recording(self):
-        self.pause_event.clear()
 
     def exit_app(self):
         self.root.destroy()
