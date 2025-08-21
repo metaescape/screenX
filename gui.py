@@ -44,32 +44,44 @@ class ScreenRecorderApp:
         self.root = tk.Tk()
         self.root.bind("<Escape>", self.exit_program)
         self.recording = ""
-        self.state = "normal"
-
-        screen_width = self.root.winfo_screenwidth()
-        screen_height = self.root.winfo_screenheight()
 
         # print(f"Screen size: {screen_width}x{screen_height}")
         self.root.attributes("-topmost", True)
-
         self.root.attributes("-type", "dialog")
-        self.root.attributes(
-            "-alpha", 0.25
-        )  # Set transparency level (0.0 to 1.0)
-        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
         self.root.title(TITLE)
-        self.root.configure(bg="white")
+
+        self.buttons = {}
         self.border_thickness = 2
+        self.borders = []
+        self.reset_root()
+
+    def reset_root(self):
+        self.state = "normal"
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
+
+        # Set transparency level (0.0 to 1.0)
+        self.root.attributes("-alpha", 0.2)
+        self.root.configure(bg="white")
 
         self.canvas = tk.Canvas(self.root, cursor="cross")
-
         self.canvas.pack(fill=tk.BOTH, expand=True)
 
         self.canvas.bind("<ButtonPress-1>", self.on_button_press)
         self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
-        self.selection_box = None
-        self.buttons = {}
+
+        # initialize the selection box, the coordinates will be updated on mouse drag
+        # so it initial coordinates are not important
+        self.selection_box = self.canvas.create_rectangle(
+            0,
+            0,
+            0,
+            0,
+            outline="black",
+            width=2,
+        )
 
     def update_bbox(self):
         self.bbox = {
@@ -84,19 +96,9 @@ class ScreenRecorderApp:
             self.start_x = event.x
             self.start_y = event.y
 
-            if self.selection_box:
-                self.canvas.delete(self.selection_box)
-            self.selection_box = self.canvas.create_rectangle(
-                self.start_x,
-                self.start_y,
-                self.start_x,
-                self.start_y,
-                outline="black",
-                width=2,
-            )
-
     def on_mouse_drag(self, event):
         if self.state == "normal":
+            # update the coordinates of the selection box
             self.canvas.coords(
                 self.selection_box,
                 self.start_x,
@@ -110,38 +112,38 @@ class ScreenRecorderApp:
             self.end_x = event.x
             self.end_y = event.y
 
-            self.start_x = (
+            left_top_x = (
                 min(self.start_x, self.end_x) + self.root.winfo_rootx()
             )
 
-            self.start_y = (
+            left_top_y = (
                 min(self.start_y, self.end_y) + self.root.winfo_rooty()
             )
-            self.end_x = (
+            right_bottom_x = (
                 max(self.start_x, self.end_x) + self.root.winfo_rootx()
             )
-            self.end_y = (
+            right_bottom_y = (
                 max(self.start_y, self.end_y) + self.root.winfo_rooty()
             )
-            self.bbox["top"] = self.start_y
-            self.bbox["left"] = self.start_x
-            self.bbox["width"] = self.end_x - self.start_x
-            self.bbox["height"] = self.end_y - self.start_y
+
+            self.bbox["top"] = left_top_y
+            self.bbox["left"] = left_top_x
+            self.bbox["width"] = right_bottom_x - left_top_x
+            self.bbox["height"] = right_bottom_y - left_top_y
 
             self.transparent_window_with_borders(
-                self.start_x,
-                self.start_y,
+                left_top_x,
+                left_top_y,
                 self.bbox["width"],
                 self.bbox["height"],
             )
-            self.create_button_window()
+            self.create_button_window(left_top_x, left_top_y)
 
     def transparent_window_with_borders(self, x, y, width, height):
         self.state = "readonly"
-        self.root.geometry(f"{1}x{1}+{x}+{y}")
         self.root.attributes("-alpha", 0)
 
-        BorderLine(
+        b1 = BorderLine(
             self.root,
             x,
             y - self.border_thickness,
@@ -149,7 +151,7 @@ class ScreenRecorderApp:
             self.border_thickness,
         )
 
-        BorderLine(
+        b2 = BorderLine(
             self.root,
             x - self.border_thickness,
             y,
@@ -157,20 +159,21 @@ class ScreenRecorderApp:
             height,
         )
 
-        BorderLine(
+        b3 = BorderLine(
             self.root,
             x,
             y + height,
             width,
             self.border_thickness,
         )
-        BorderLine(
+        b4 = BorderLine(
             self.root,
             x + width,
             y,
             self.border_thickness,
             height,
         )
+        self.borders = [b1, b2, b3, b4]
 
     def validate_input(self, value):
         if value.isdigit() or value == "":
@@ -181,7 +184,6 @@ class ScreenRecorderApp:
     def start_timer(self):
         # 获取用户输入的秒数
         input_value = self.input_area.get()
-        print(input_value)
 
         if input_value.isdigit():
             seconds = int(input_value)
@@ -189,7 +191,6 @@ class ScreenRecorderApp:
             threading.Thread(target=self.run_timer, args=(seconds,)).start()
 
     def run_timer(self, seconds):
-        print(f"Timer started for {seconds} seconds.")
         for i in range(seconds):
             self.input_area.delete(0, tk.END)
             self.input_area.insert(0, str(seconds - i))
@@ -198,18 +199,15 @@ class ScreenRecorderApp:
         self.input_area.insert(0, str(seconds))
         self.toggle_recording(self.recording)
 
-    def create_button_window(self):
+    def create_button_window(self, x, y):
         self.button_window = tk.Toplevel(self.root)
         self.button_window.overrideredirect(True)  # 去掉窗口边框
-        self.button_window.geometry(
-            f"+{self.end_x}+{self.start_y}"
-        )  # 将按钮窗口放置在选择框的右侧
-        self.button_window.attributes("-alpha", 1.0)  # 确保按钮窗口不透明
+        self.button_window.attributes("-alpha", 0.8)  # 确保按钮窗口不透明
 
         self.input_area = tk.Entry(
-            self.button_window, width=6, font=("Helvetica", 14)
+            self.button_window, width=5, font=("Helvetica", 14)
         )
-        self.input_area.pack(side=tk.TOP, padx=2, pady=2)
+        self.input_area.pack(side=tk.LEFT)
         vcmd = (self.root.register(self.validate_input), "%P")
         self.input_area.config(validate="key", validatecommand=vcmd)
 
@@ -218,31 +216,31 @@ class ScreenRecorderApp:
             text="video",
             command=lambda: self.toggle_recording("video"),
         )
-        video_button.pack(side=tk.TOP, padx=5, pady=5)
+        video_button.pack(side=tk.LEFT)
 
         gif_button = tk.Button(
             self.button_window,
             text="gif",
             command=lambda: self.toggle_recording("gif"),
         )
-        gif_button.pack(side=tk.TOP, padx=5, pady=5)
+        gif_button.pack(side=tk.LEFT)
 
         image_button = tk.Button(
             self.button_window,
             text="image",
             command=self.capture_image,
         )
-        image_button.pack(side=tk.TOP, padx=5, pady=5)
+        image_button.pack(side=tk.LEFT)
 
         reset_button = tk.Button(
             self.button_window, text="resel", command=self.reset_selection
         )
-        reset_button.pack(side=tk.TOP, padx=5, pady=5)
+        reset_button.pack(side=tk.LEFT)
 
         exit_button = tk.Button(
             self.button_window, text="exit", command=self.exit_program
         )
-        exit_button.pack(side=tk.TOP, padx=5, pady=5)
+        exit_button.pack(side=tk.LEFT)
         self.buttons = {
             "video": video_button,
             "image": image_button,
@@ -251,12 +249,31 @@ class ScreenRecorderApp:
             "exit": exit_button,
         }
 
+        # Update the button window size and position
+        self.button_window.update_idletasks()
+        # get height of self.button_window
+        height = self.button_window.winfo_height()
+        width = self.button_window.winfo_width()
+        # 将按钮窗口放置在选择框的上方
+        self.button_window.geometry(f"+{x-2}+{y-height-2}")
+        self.root.geometry(f"{width+20}x{height}+{x-20}+{y-height-2}")
+
     def reset_selection(self):
         if self.recording:
-            notify_send(f"Please stop {self.recording} recording first.")
+            self.exit_recording()
+            notify_send(f"exit recording")
             return
-        self.root.destroy()
-        self.init_root()
+        # distroy the button window
+        if hasattr(self, "button_window"):
+            self.button_window.destroy()
+        # distroy the borders
+        for border in self.borders:
+            border.destroy()
+
+        # distroy canvas
+        self.canvas.destroy()
+
+        self.reset_root()
 
     def toggle_recording(self, media="video"):
         if not self.recording:
@@ -290,6 +307,10 @@ class ScreenRecorderApp:
     def register_gif_hooks(self, start_hook, end_hook):
         self.start_gif_hook = start_hook
         self.stop_gif_hook = end_hook
+
+    def exit_recording(self):
+        for thread in self.threads:
+            thread.exit()
 
     def stop_recording(self):
         self.stop_event.set()
