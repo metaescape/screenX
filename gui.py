@@ -214,6 +214,7 @@ class ScreenRecorderApp:
             command=self.toggle_pause,
         )
         pause_button.pack(side=tk.LEFT)
+        self.default_bg = pause_button.cget("background")
 
         image_button = tk.Button(
             self.button_window,
@@ -307,11 +308,13 @@ class ScreenRecorderApp:
             self.state = f"pause_{media}"
             self.pause_event.clear()
             self.buttons["pause"].config(text="resume")
+            self.buttons["pause"].config(background="#bf616a")
         elif self.state.startswith("pause_"):
             media = self.state.split("_")[1]
             self.state = f"recording_{media}"
             self.pause_event.set()
             self.buttons["pause"].config(text="pause")
+            self.buttons["pause"].config(background=self.default_bg)
         else:
             notify_send(f"Cannot pause/resume in state: {self.state}")
 

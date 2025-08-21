@@ -86,9 +86,6 @@ def record_system_audio(stop_event, pause_event):
         frames_per_buffer=CHUNK,
     )
 
-    writer_thread = threading.Thread(target=write_audio_to_file)
-    writer_thread.start()
-
     print("Recording system audio...")
     try:
         while not stop_event.is_set():
@@ -102,7 +99,7 @@ def record_system_audio(stop_event, pause_event):
         stream.stop_stream()
         stream.close()
         p.terminate()
-        writer_thread.join()
+        write_audio_to_file()
     print("Audio recording stopped.")
 
 
