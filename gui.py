@@ -1,6 +1,5 @@
 import tkinter as tk
-import time
-import subprocess, threading
+import subprocess
 import sys
 
 TITLE = "ScreenX"
@@ -191,6 +190,10 @@ class ScreenRecorderApp:
             self.button_window, width=5, font=("Helvetica", 14)
         )
         self.input_area.pack(side=tk.LEFT)
+        self.button_window.bind(
+            "<Enter>", lambda event: self.input_area.focus_set()
+        )
+
         vcmd = (self.root.register(self.validate_input), "%P")
         self.input_area.config(validate="key", validatecommand=vcmd)
 
@@ -258,7 +261,7 @@ class ScreenRecorderApp:
             "pause_gif ",
         ]:
             self.state = "to_record"
-            self.exit_recording()
+            self.stop_recording()
             notify_send(f"exit recording")
             return
         # distroy the button window
@@ -378,10 +381,6 @@ class ScreenRecorderApp:
     def register_gif_hooks(self, start_hook, end_hook):
         self.start_gif_hook = start_hook
         self.stop_gif_hook = end_hook
-
-    def exit_recording(self):
-        for thread in self.threads:
-            thread.exit()
 
     def stop_recording(self):
         self.stop_event.set()
