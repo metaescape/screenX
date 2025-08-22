@@ -16,7 +16,6 @@ class BorderLine(tk.Toplevel):
         super().__init__(root)
         self.geometry(f"{width}x{height}+{x}+{y}")
         self.overrideredirect(True)
-        self.attributes("-topmost", True)
         self.config(bg="#bf616a")
 
     def update_geometry(self, x, y, width, height):
@@ -183,13 +182,14 @@ class ScreenRecorderApp:
 
     def create_button_window(self, x, y):
         self.button_window = tk.Toplevel(self.root)
-        self.button_window.overrideredirect(True)  # 去掉窗口边框
-        self.button_window.attributes("-alpha", 0.8)  # 确保按钮窗口不透明
+        self.button_window.overrideredirect(True)
+        self.button_window.attributes("-topmost", True)
 
         self.input_area = tk.Entry(
             self.button_window, width=5, font=("Helvetica", 14)
         )
         self.input_area.pack(side=tk.LEFT)
+
         self.button_window.bind(
             "<Enter>", lambda event: self.input_area.focus_set()
         )
@@ -262,7 +262,11 @@ class ScreenRecorderApp:
         ]:
             self.stop_recording()
             notify_send(f"exit recording")
-            return
+        else:
+            self._clear_toplevel()
+            self.reset_root()
+
+    def _clear_toplevel(self):
         # distroy the button window
         if hasattr(self, "button_window"):
             self.button_window.destroy()
@@ -273,31 +277,34 @@ class ScreenRecorderApp:
         # distroy canvas
         self.canvas.destroy()
 
-        self.reset_root()
+    def _start_recording(self, media="video"):
+        self.state = f"recording_{media}"
+        if media == "video":
+            self.stop_event, self.pause_event, *self.threads = (
+                self.start_video_hook()
+            )
+            self.update_video_button_text()
+        else:
+            self.stop_event, self.pause_event, *self.threads = (
+                self.start_gif_hook()
+            )
+            self.update_gif_button_text()
+
+    def _stop_and_save(self, media="video"):
+        self.stop_recording()
+        if media == "video":
+            self.stop_video_hook()
+        elif media == "gif":
+            self.stop_gif_hook()
 
     def toggle_recording(self, media="video"):
         if self.state == "to_record":
-            self.state = f"recording_{media}"
-            if media == "video":
-                self.stop_event, self.pause_event, *self.threads = (
-                    self.start_video_hook()
-                )
-                self.update_video_button_text()
-            else:
-                self.stop_event, self.pause_event, *self.threads = (
-                    self.start_gif_hook()
-                )
-                self.update_gif_button_text()
+            self._start_recording(media)
         elif (
             self.state == f"recording_{media}"
             or self.state == f"pause_{media}"
         ):
-            self.stop_recording()
-            if media == "video":
-                self.stop_video_hook()
-            elif media == "gif":
-                self.stop_gif_hook()
-            self.buttons[media].config(text=media)
+            self._stop_and_save(media)
         else:
             notify_send(
                 f"Invalid state: {self.state}. Cannot toggle recording"
@@ -386,6 +393,10 @@ class ScreenRecorderApp:
         if "pause" in self.buttons and self.buttons["pause"]:
             self.buttons["pause"].config(text="pause")
             self.buttons["pause"].config(background=self.default_bg)
+        if "video" in self.buttons and self.buttons["video"]:
+            self.buttons["video"].config(text="video")
+        if "gif" in self.buttons and self.buttons["gif"]:
+            self.buttons["gif"].config(text="gif")
         if self.pause_event:
             self.pause_event.set()
         if self.stop_event:
@@ -397,7 +408,6 @@ class ScreenRecorderApp:
         self.root.mainloop()
 
     def exit_program(self, event=None):
-        self.state = "to_record"
         self.stop_recording()
         self.root.destroy()
         sys.exit(0)
