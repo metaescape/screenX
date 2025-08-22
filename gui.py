@@ -258,7 +258,7 @@ class ScreenRecorderApp:
             "recording_video",
             "recording_gif",
             "pause_video",
-            "pause_gif ",
+            "pause_gif",
         ]:
             self.stop_recording()
             notify_send(f"exit recording")
@@ -383,9 +383,13 @@ class ScreenRecorderApp:
     def stop_recording(self):
         # wake up and stop all threads
         self.state = "to_record"
-        self.buttons["pause"].config(background=self.default_bg)
-        self.pause_event.set()
-        self.stop_event.set()
+        if "pause" in self.buttons and self.buttons["pause"]:
+            self.buttons["pause"].config(text="pause")
+            self.buttons["pause"].config(background=self.default_bg)
+        if self.pause_event:
+            self.pause_event.set()
+        if self.stop_event:
+            self.stop_event.set()
         for thread in self.threads:
             thread.join()
 
