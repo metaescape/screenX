@@ -125,18 +125,15 @@ class ScreenRecorderApp:
                 max(self.start_y, self.end_y) + self.root.winfo_rooty()
             )
 
+            w, h = right_bottom_x - left_top_x, right_bottom_y - left_top_y
+
             self.bbox["top"] = left_top_y
             self.bbox["left"] = left_top_x
-            self.bbox["width"] = right_bottom_x - left_top_x
-            self.bbox["height"] = right_bottom_y - left_top_y
+            self.bbox["width"] = w
+            self.bbox["height"] = h
 
-            self.transparent_window_with_borders(
-                left_top_x,
-                left_top_y,
-                self.bbox["width"],
-                self.bbox["height"],
-            )
-            self.create_button_window(left_top_x, left_top_y)
+            self.transparent_window_with_borders(left_top_x, left_top_y, w, h)
+            self.create_button_window(left_top_x, left_top_y, w, h)
 
     def transparent_window_with_borders(self, x, y, width, height):
         self.state = "to_record"
@@ -180,15 +177,34 @@ class ScreenRecorderApp:
         else:
             return False
 
-    def create_button_window(self, x, y):
+    def _button_window_direction(self, x, y, w, h):
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        # order: up, right, left
+        direction = "up"
+        if y < 50 or x > screen_width - 360:
+            if x + w <= screen_width - 80:
+                return "right"
+            if x > 80:
+                return "left"
+            if y + h <= screen_height - 80:
+                return "down"
+        return direction
+
+    def create_button_window(self, x, y, w, h):
         self.button_window = tk.Toplevel(self.root)
         self.button_window.overrideredirect(True)
         self.button_window.attributes("-topmost", True)
 
+        direction = self._button_window_direction(x, y, w, h)
+        side = tk.LEFT
+        if direction in ["left", "right"]:
+            side = tk.TOP
+
         self.input_area = tk.Entry(
             self.button_window, width=5, font=("Helvetica", 14)
         )
-        self.input_area.pack(side=tk.LEFT)
+        self.input_area.pack(side=side)
 
         self.button_window.bind(
             "<Enter>", lambda event: self.input_area.focus_set()
@@ -202,21 +218,21 @@ class ScreenRecorderApp:
             text="video",
             command=lambda: self.toggle_recording("video"),
         )
-        video_button.pack(side=tk.LEFT)
+        video_button.pack(side=side)
 
         gif_button = tk.Button(
             self.button_window,
             text="gif",
             command=lambda: self.toggle_recording("gif"),
         )
-        gif_button.pack(side=tk.LEFT)
+        gif_button.pack(side=side)
 
         pause_button = tk.Button(
             self.button_window,
             text="pause",
             command=self.toggle_pause,
         )
-        pause_button.pack(side=tk.LEFT)
+        pause_button.pack(side=side)
         self.default_bg = pause_button.cget("background")
 
         image_button = tk.Button(
@@ -224,17 +240,17 @@ class ScreenRecorderApp:
             text="img",
             command=self.capture_image,
         )
-        image_button.pack(side=tk.LEFT)
+        image_button.pack(side=side)
 
         reset_button = tk.Button(
             self.button_window, text="resel", command=self.reset_selection
         )
-        reset_button.pack(side=tk.LEFT)
+        reset_button.pack(side=side)
 
         exit_button = tk.Button(
             self.button_window, text="X", command=self.exit_program
         )
-        exit_button.pack(side=tk.LEFT)
+        exit_button.pack(side=side)
         self.buttons = {
             "video": video_button,
             "image": image_button,
@@ -249,9 +265,19 @@ class ScreenRecorderApp:
         # get height of self.button_window
         height = self.button_window.winfo_height()
         width = self.button_window.winfo_width()
-        # 将按钮窗口放置在选择框的上方
-        self.button_window.geometry(f"+{x-2}+{y-height-2}")
-        self.root.geometry(f"{width+20}x{height}+{x-20}+{y-height-2}")
+
+        if direction == "up":
+            self.button_window.geometry(f"+{x}+{y-height-2}")
+            self.root.geometry(f"{width+20}x{height}+{x-10}+{y-height-2}")
+        elif direction == "down":
+            self.button_window.geometry(f"+{x}+{y+h+2}")
+            self.root.geometry(f"{width+20}x{height}+{x-10}+{y+h+2}")
+        elif direction == "left":
+            self.button_window.geometry(f"+{x-width-2}+{y}")
+            self.root.geometry(f"{width+20}x{height}+{x-width-2}+{y-10}")
+        elif direction == "right":
+            self.button_window.geometry(f"+{x+w+2}+{y}")
+            self.root.geometry(f"{width+20}x{height}+{x+w+2}+{y-10}")
 
     def reset_selection(self):
         if self.state in [
