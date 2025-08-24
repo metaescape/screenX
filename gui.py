@@ -48,9 +48,6 @@ class ScreenRecorderApp:
         self.root.attributes("-type", "dialog")
         self.root.title(TITLE)
 
-        self.buttons = {}
-        self.border_thickness = 2
-        self.borders = []
         self.reset_root()
 
     def reset_root(self):
@@ -81,6 +78,10 @@ class ScreenRecorderApp:
             outline="black",
             width=2,
         )
+        self.buttons = {}
+        self.border_thickness = 2
+        self.borders = []
+        self.button_window = None
 
     def update_bbox(self):
         self.bbox = {
@@ -183,13 +184,33 @@ class ScreenRecorderApp:
         # order: up, right, left
         direction = "up"
         if y < 50 or x > screen_width - 360:
-            if x + w <= screen_width - 80:
+            if x + w <= screen_width - 70:
                 return "right"
-            if x > 80:
+            if x > 70:
                 return "left"
-            if y + h <= screen_height - 80:
+            if y + h <= screen_height - 70:
                 return "down"
         return direction
+
+    def set_button_window_position(self, x, y, w, h, width, height, direction):
+        """
+        x,y : top-left corner of the selection
+        w,h : width and height of the selection
+        width, height : width and height of the button window
+        direction : up, down, left, right
+        """
+        if direction == "up":
+            self.button_window.geometry(f"+{x}+{y-height-2}")
+            self.root.geometry(f"{width+20}x{height}+{x-10}+{y-height-2}")
+        elif direction == "down":
+            self.button_window.geometry(f"+{x}+{y+h+2}")
+            self.root.geometry(f"{width+20}x{height}+{x-10}+{y+h+2}")
+        elif direction == "left":
+            self.button_window.geometry(f"+{x-width-2}+{y}")
+            self.root.geometry(f"{width+20}x{height}+{x-width-2}+{y-10}")
+        elif direction == "right":
+            self.button_window.geometry(f"+{x+w+2}+{y}")
+            self.root.geometry(f"{width+20}x{height}+{x+w+2}+{y-10}")
 
     def create_button_window(self, x, y, w, h):
         self.button_window = tk.Toplevel(self.root)
@@ -198,8 +219,12 @@ class ScreenRecorderApp:
 
         direction = self._button_window_direction(x, y, w, h)
         side = tk.LEFT
+        width, height = 361, 29
         if direction in ["left", "right"]:
             side = tk.TOP
+            # hard code to avoid self.button_window.update_idletasks(), this may cause flickering
+            width, height = 62, 202
+        self.set_button_window_position(x, y, w, h, width, height, direction)
 
         self.input_area = tk.Entry(
             self.button_window, width=5, font=("Helvetica", 14)
@@ -209,6 +234,7 @@ class ScreenRecorderApp:
         self.button_window.bind(
             "<Enter>", lambda event: self.input_area.focus_set()
         )
+        # self.button_window.bind("<Escape>", self.exit_program)
 
         vcmd = (self.root.register(self.validate_input), "%P")
         self.input_area.config(validate="key", validatecommand=vcmd)
@@ -260,25 +286,6 @@ class ScreenRecorderApp:
             "exit": exit_button,
         }
 
-        # Update the button window size and position
-        self.button_window.update_idletasks()
-        # get height of self.button_window
-        height = self.button_window.winfo_height()
-        width = self.button_window.winfo_width()
-
-        if direction == "up":
-            self.button_window.geometry(f"+{x}+{y-height-2}")
-            self.root.geometry(f"{width+20}x{height}+{x-10}+{y-height-2}")
-        elif direction == "down":
-            self.button_window.geometry(f"+{x}+{y+h+2}")
-            self.root.geometry(f"{width+20}x{height}+{x-10}+{y+h+2}")
-        elif direction == "left":
-            self.button_window.geometry(f"+{x-width-2}+{y}")
-            self.root.geometry(f"{width+20}x{height}+{x-width-2}+{y-10}")
-        elif direction == "right":
-            self.button_window.geometry(f"+{x+w+2}+{y}")
-            self.root.geometry(f"{width+20}x{height}+{x+w+2}+{y-10}")
-
     def reset_selection(self):
         if self.state in [
             "recording_video",
@@ -294,8 +301,9 @@ class ScreenRecorderApp:
 
     def _clear_toplevel(self):
         # distroy the button window
-        if hasattr(self, "button_window"):
+        if self.button_window:
             self.button_window.destroy()
+
         # distroy the borders
         for border in self.borders:
             border.destroy()
