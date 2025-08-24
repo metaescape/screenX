@@ -193,13 +193,13 @@ if __name__ == "__main__":
 
     # arg parser for main and merge_audio_video
     parser.add_argument(
-        "--full", "-f", action="store_true", help="Run the main function"
+        "--test", "-t", action="store_true", help="Run the main function"
     )
 
     args = parser.parse_args()
-    if args.full:
-        main()
-    else:
+    if args.test:
         merge_audio_video(
             "/tmp/_output.mp4", "/tmp/_output.wav", "/tmp/output.mp4"
         )
+    else:
+        main()
